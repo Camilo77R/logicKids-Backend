@@ -1,5 +1,6 @@
 import "dotenv/config";
 import app from "./app.js";
+import checkDatabase from "./services/healthService.js";
 
 const port = process.env.PORT || 3000;
 const env = process.env.NODE_ENV || "development";
@@ -15,6 +16,8 @@ server.on("error", (error) => {
 	console.error("Error al iniciar el servidor:", error.message);
 	process.exit(1);
 });
+
+checkDatabase();
 
 process.on("unhandledRejection", (reason) => {
 	console.error("Promesa rechazada sin catch:", reason);
