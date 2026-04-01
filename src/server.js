@@ -28,3 +28,4 @@ process.on("uncaughtException", (error) => {
 	console.error("Excepcion no controlada:", error.message);
 	process.exit(1);
 });
+

@@ -5,13 +5,19 @@ import cors from "cors";
 import corsOptions from "./config/cors.js";
 import healthRoutes from "./routes/health.routes.js";
 
+import authRoutes from "./routes/auth.routes.js";
+
+
 const app = express();
 
 app.use(cors(corsOptions));// Habilita CORS para todas las rutas y métodos
 app.use(express.json());
-app.use('/api',healthRoutes);
 
+
+app.use('/api',healthRoutes);
+app.use("/api/auth", authRoutes)
 
 app.use(notFound);
 app.use(errorHandler);
 export default app;
+
