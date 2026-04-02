@@ -1,5 +1,6 @@
 import { supabase } from "../config/supabase.js";
 import AppError from "../utils/app-error.js";
+import { hashPassword } from "../utils/auth/hashPassword.js";
 
 // Consulta si ya existe un tutor con el email recibido para aplicar la regla de unicidad.
 export const findTutorByEmail = async (email) => {
@@ -18,12 +19,14 @@ export const findTutorByEmail = async (email) => {
 
 // Crea el tutor y devuelve solo los campos seguros que el cliente puede recibir.
 export const createTutor = async ({ nombre, email, password }) => {
+    const hashedPassword = await hashPassword(password); // (Parte modificada por cardona) Hashea la contraseña antes de guardarla
+
     const { data, error } = await supabase
         .from("tutors")
         .insert({
             nombre,
             email,
-            password_hash: password,
+            password_hash: hashedPassword, // (Parte modificada por cardona) Guarda el hash de la contraseña, no la contraseña en texto plano
         })
         .select("id, nombre, email, created_at")
         .single();
