@@ -1,7 +1,6 @@
-import { createTutor, findTutorByEmail } from "../services/auth.service.js";
+import { createTutor, findTutorByEmail, findTutorForLogin } from "../services/auth.service.js";
 import AppError from "../utils/app-error.js";
-import { generateJWT } from "../utils/auth/generateJWT.js";
-
+import { comparePassword } from "../utils/auth/comparePassword.js";
 
 // Orquesta el flujo HTTP del registro sin mezclar acceso directo a la base de datos.
 export const registerTutor = async (req, res, next) => {
@@ -16,19 +15,46 @@ export const registerTutor = async (req, res, next) => {
 
         const tutor = await createTutor(req.body);
 
-        // (Parte modificada por cardona) Genera un token JWT para el tutor recién registrado, incluyendo su id y email como payload.
-        const token = generateJWT({
-            id: tutor.id,
-            email: tutor.email,
-        });
-
         return res.status(201).json({
             success: true,
             message: "Tutor registrado correctamente",
             data: tutor,
-            token, // (Parte modificada por cardona) Devuelve el token JWT al cliente para que pueda usarlo en futuras solicitudes autenticadas
         });
     } catch (error) {
         return next(error);
     }
 };
+
+// Orquesta el flujo HTTP del login sin mezclar acceso directo a la base de datos.
+export const login = async (req, res, next) => {
+    try {
+        const { email, password } = req.body;
+
+        const tutor = await findTutorForLogin(email);
+
+        if (!tutor) {
+            return next(new AppError("Credenciales invalidas", 401));
+        }
+
+        const isValid = await comparePassword(password, tutor.password_hash);
+
+        if (!isValid) {
+            return next(new AppError("Credenciales invalidas", 401));
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Login exitoso",
+            data: {
+                id: tutor.id,
+                nombre: tutor.nombre,
+                email: tutor.email,
+            },
+        });
+    } catch (error) {
+        return next(error);
+    }
+};
+
+// Alias requerido por checklist de Cardona (loginTutor).
+export const loginTutor = login;
