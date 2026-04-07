@@ -1,22 +1,14 @@
-import { createTutor, findTutorByEmail } from "../services/auth.service.js";
+import { createTutor, findTutorForLogin } from "../services/auth.service.js";
 import AppError from "../utils/app-error.js";
 import { generateJWT } from "../utils/auth/generateJWT.js";
+import { comparePassword } from "../utils/auth/comparePassword.js";
 
-
-// Orquesta el flujo HTTP del registro sin mezclar acceso directo a la base de datos.
+// ================= REGISTER =================
 export const registerTutor = async (req, res, next) => {
     try {
-        const { email } = req.body;
-
-        const existingTutor = await findTutorByEmail(email);
-
-        if (existingTutor) {
-            return next(new AppError("El usuario ya existe", 409));
-        }
-
         const tutor = await createTutor(req.body);
 
-        // (Parte modificada por cardona) Genera un token JWT para el tutor recién registrado, incluyendo su id y email como payload.
+        //  JWT (parte de Cardona) parte de cardona, para que el cliente lo reciba al registrarse y no tenga que loguearse después de registrarse
         const token = generateJWT({
             id: tutor.id,
             email: tutor.email,
@@ -24,10 +16,52 @@ export const registerTutor = async (req, res, next) => {
 
         return res.status(201).json({
             success: true,
-            message: "Tutor registrado correctamente",
-            data: tutor,
-            token, // (Parte modificada por cardona) Devuelve el token JWT al cliente para que pueda usarlo en futuras solicitudes autenticadas
+            data: {
+                tutor: {
+                    id: tutor.id,
+                    nombre: tutor.nombre,
+                    email: tutor.email,
+                },
+                token, // Parte de cardona, para que el cliente lo reciba al registrarse y no tenga que loguearse después de registrarse
+            },
         });
+
+    } catch (error) {
+        return next(error);
+    }
+};
+
+// ================= LOGIN =================
+export const loginTutor = async (req, res, next) => {
+    try {
+        const { email, password } = req.body;
+
+        const tutor = await findTutorForLogin(email);
+
+        if (!tutor) {
+            return next(new AppError("Credenciales inválidas", 401));
+        }
+
+        const isValid = await comparePassword(password, tutor.password_hash);
+
+        if (!isValid) {
+            return next(new AppError("Credenciales inválidas", 401));
+        }
+
+        // (esto es de Garcés)
+        return res.status(200).json({
+            success: true,
+            data: {
+                tutor: {
+                    id: tutor.id,
+                    nombre: tutor.nombre,
+                    email: tutor.email,
+                },
+                //  Aquí Garcés agregará:
+                // token: "jwt"
+            },
+        });
+
     } catch (error) {
         return next(error);
     }

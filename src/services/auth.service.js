@@ -37,3 +37,18 @@ export const createTutor = async ({ nombre, email, password }) => {
 
     return data;
 };
+
+// Obtiene el tutor con su hash de password para validar credenciales en login.
+export const findTutorForLogin = async (email) => {
+    const { data, error } = await supabase
+        .from("tutors")
+        .select("id, nombre, email, password_hash")
+        .eq("email", email)
+        .maybeSingle();
+
+    if (error) {
+        throw new AppError("Error al buscar el usuario", 500);
+    }
+
+    return data;
+};
