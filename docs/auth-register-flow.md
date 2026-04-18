@@ -3,6 +3,9 @@
 ## Objetivo
 Documentar el flujo actual de `POST /api/auth/register` para que el equipo tenga claro donde vive cada responsabilidad y como extenderlo sin mezclar capas.
 
+## Regla del proyecto
+La DB oficial manda. En esta fase el registro ya no trabaja contra `tutors`, sino contra `users` con `role = tutor`.
+
 ## Flujo General
 `request -> route -> validateSchema -> controller -> service -> errorHandler`
 
@@ -10,7 +13,7 @@ Documentar el flujo actual de `POST /api/auth/register` para que el equipo tenga
 
 ### `registerSchema`
 Valida las reglas minimas de entrada del registro:
-- `nombre`
+- `nombre` o `full_name`
 - `email`
 - `password`
 
@@ -32,18 +35,18 @@ Controller que coordina el caso de uso HTTP.
 
 Su trabajo es:
 - leer el body ya validado
-- pedir al service que revise si el email existe
-- pedir al service que cree el tutor
+- pedir al service que ejecute el caso de uso de registro
 - devolver la respuesta `201`
 
 No debe validar manualmente ni hablar directo con Supabase.
 
 ### `auth.service`
-Contiene la logica de negocio y acceso a datos de registro.
+Contiene la logica de negocio y acceso a datos del registro.
 
-Funciones actuales:
-- `findTutorByEmail(email)`: revisa si el tutor ya existe
-- `createTutor(data)`: inserta el tutor y devuelve solo campos seguros
+Funciones clave actuales:
+- `registerTutor(payload)`: registra al tutor respetando la DB oficial
+- `findUserByEmail(email)`: revisa si el correo ya existe
+- `createTutor(data)`: inserta en `users` con `full_name`, `password_hash` y `role = tutor`
 
 ### `AppError`
 Error personalizado para transportar:
@@ -60,18 +63,27 @@ Su trabajo es:
 - leer `err.message`
 - responder con el formato estandar de error
 
+## Respuesta actual esperada
+```json
+{
+  "success": true,
+  "data": {
+    "tutor": {
+      "id": "...",
+      "nombre": "...",
+      "email": "..."
+    },
+    "token": "..."
+  }
+}
+```
+
 ## Casos probados
 - `201`: tutor creado correctamente
-- `409`: el usuario ya existe
+- `409`: el correo ya existe
 - `400`: datos invalidos
 
-## Decision temporal del proyecto
-Por ahora el registro guarda `password` en la columna `password_hash` de forma temporal.
-
-Esto se hizo para completar el bloque backend de Camilo sin bloquear el trabajo del compañero encargado de hash y JWT.
-
-## Pendiente para la siguiente fase
-- reemplazar el guardado temporal por `bcrypt`
-- generar JWT
-- devolver `token` junto con el tutor
-- revisar si la respuesta final debe estandarizarse con `message`, `data` y `token`
+## Notas de implementacion
+- Se mantiene compatibilidad con frontend del Sprint 1 aceptando `nombre`, pero la DB persiste `full_name`.
+- La contrasena se guarda hasheada en `password_hash`.
+- El token JWT se genera despues del registro y se devuelve junto con el tutor.
