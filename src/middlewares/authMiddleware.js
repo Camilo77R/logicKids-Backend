@@ -39,19 +39,19 @@ const authMiddleware = (req, res, next) => {
         // Validar token con jsonwebtoken.verify().
         const payload = jwt.verify(token, secret);
 
-        // Tarea: Decodificar payload (id, email).
-        const { id, email } = payload;
-        if (!id || !email) {
+        // Tarea: Decodificar payload (id, email, role).
+        const { id, email, role } = payload;
+        if (!id || !email || !role) {
             // Payload no contiene datos esperados → 401
             return next(new AppError("No autorizado", 401));
         }
 
-        // Agregar req.user = { id, email }.
-        req.user = { id, email };
+        // Agregar req.user = { id, email, role }.
+        req.user = { id, email, role };
 
         // Tnext() se ejecuta si el token es válido.
         return next();
-    } catch (error) {
+    } catch {
         // Cualquier error en la verificación entrega 401 sin detallar el motivo.
         return next(new AppError("No autorizado", 401));
     }
