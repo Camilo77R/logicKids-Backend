@@ -8,6 +8,7 @@ import authRoutes from "./routes/auth.routes.js";
 import protectedRoutes from "./routes/protected.routes.js";
 import rootRoutes from "./routes/root.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
+import studentRoutes from "./routes/student.routes.js";
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.use("/", rootRoutes);
 app.use("/api", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/dashboard",dashboardRoutes);
+app.use("/api/students", studentRoutes);
 app.use("/api", protectedRoutes);
 
 app.use(notFound);

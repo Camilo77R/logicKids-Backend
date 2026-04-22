@@ -53,6 +53,21 @@ const createTutor = async ({ full_name, email, password }) => {
         throw new AppError("Error al crear el usuario", 500);
     }
 
+    // Crear grupo por defecto para el tutor //pen
+    const { error: groupError } = await supabase
+        .from("groups")
+        .insert({
+            user_id: data.id,
+            name: "Mi grupo",
+            is_default: true,
+        });
+
+    if (groupError) {
+        // Si falla crear grupo, eliminar el usuario creado
+        await supabase.from(USERS_TABLE).delete().eq("id", data.id);
+        throw new AppError("Error al crear el grupo del tutor", 500);
+    }
+
     return data;
 };
 
