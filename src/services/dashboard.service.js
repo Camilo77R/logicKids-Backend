@@ -14,7 +14,7 @@ const DASHBOARD_READ_ERROR = "No fue posible cargar el dashboard del tutor";
  * POR QUÉ:
  * El frontend necesita una estructura estable incluso cuando no existe información real.
  */
-const buildEmptySummary = () => ({//esrot e para la salidas finales (separamos leer el  datos de armar la salida formal)
+const buildEmptySummary = () => ({
     groupId: null,
     groupName: null,
     totalChildren: 0,
@@ -28,7 +28,7 @@ const buildEmptySummary = () => ({//esrot e para la salidas finales (separamos l
  *
  * reason:
  * - no_group: el tutor aún no tiene grupo creado
- * - no_students: sí hay grupo, pero todavía no hay estudiantes activos
+ * - no_children: sí hay grupo, pero todavía no hay children activos
  */
 const buildEmptyState = (reason) => ({
     isEmpty: true,
@@ -56,18 +56,13 @@ const mapGroupSummary = (group, stats) => ({
 });
 
 /**
- * Traduce cada estudiante a un preview corto para el dashboard.
+ * Traduce cada child a un preview corto para el dashboard.
  *
  * POR QUÉ:
- * HU-09 no necesita todavía el detalle completo del estudiante.
- * Solo necesita una vista breve y útil.
- *
- * NOTA DE CONVENCION:
- * - La DB oficial usa children
- * - El contrato del producto usa students
- * Esta funcion hace ese puente sin romper la regla DB-first.
+ * HU-09 no necesita todavía el detalle completo del módulo de children.
+ * Solo necesita una vista breve y útil para arrancar.
  */
-const mapStudentPreview = (child) => ({
+const mapChildPreview = (child) => ({
     id: child.id,
     name: child.name,
     age: child.age,
@@ -122,13 +117,13 @@ const findGroupStats = async (groupId, tutorId) => {
 };
 
 /**
- * Trae una vista previa corta de estudiantes activos del grupo.
+ * Trae una vista previa corta de children activos del grupo.
  *
  * POR QUÉ:
  * El dashboard no debe cargar toda la lógica del detalle.
  * Solo muestra un preview útil para arrancar.
  */
-const findStudentsPreview = async (groupId) => {
+const findChildrenPreview = async (groupId) => {
     const { data, error } = await supabase
         .from(CHILDREN_TABLE)
         .select("id, name, age, avatar_color, stars_total, is_session_active, access_code")
@@ -150,7 +145,7 @@ const findStudentsPreview = async (groupId) => {
  * QUÉ hace:
  * - identifica el grupo del tutor autenticado
  * - obtiene el resumen estadístico del grupo
- * - obtiene un preview de estudiantes
+ * - obtiene un preview de children
  * - devuelve un estado vacío honesto si aún no hay datos
  */
 export const getTutorDashboardSummary = async (tutorId) => {
@@ -159,21 +154,21 @@ export const getTutorDashboardSummary = async (tutorId) => {
     if (!group) {
         return {
             summary: buildEmptySummary(),
-            studentsPreview: [],
+            childrenPreview: [],
             emptyState: buildEmptyState("no_group"),
         };
     }
 
-    const [stats, students] = await Promise.all([
+    const [stats, children] = await Promise.all([
         findGroupStats(group.id, tutorId),
-        findStudentsPreview(group.id),
+        findChildrenPreview(group.id),
     ]);
 
     return {
         summary: mapGroupSummary(group, stats),
-        studentsPreview: students.map(mapStudentPreview),
-        emptyState: students.length === 0
-            ? buildEmptyState("no_students")
+        childrenPreview: children.map(mapChildPreview),
+        emptyState: children.length === 0
+            ? buildEmptyState("no_children")
             : buildReadyState(),
     };
 };
