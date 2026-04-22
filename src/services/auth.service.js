@@ -106,3 +106,43 @@ export const authenticateTutor = async ({ email, password }) => {
 
     return tutor;
 };
+
+/**
+ * Obtiene el perfil del usuario autenticado.
+ *
+ * @param {string} userId - ID del usuario del JWT
+ * @returns {object} Datos del usuario
+ */
+export const getUserProfile = async (userId) => {
+  const { data: user, error } = await supabase
+    .from('users')
+    .select('id, full_name, email, role, institution, created_at, updated_at')
+    .eq('id', userId)
+    .single();
+
+  if (error) throw error;
+  return user;
+};
+
+/**
+ * Actualiza el perfil del usuario autenticado.
+ *
+ * @param {string} userId
+ * @param {{ full_name?, institution? }} updates
+ * @returns {object} Usuario actualizado
+ */
+export const updateUserProfile = async (userId, updates) => {
+  const allowedFields = {};
+  if (updates.full_name) allowedFields.full_name = updates.full_name;
+  if (updates.institution !== undefined) allowedFields.institution = updates.institution;
+
+  const { data, error } = await supabase
+    .from('users')
+    .update(allowedFields)
+    .eq('id', userId)
+    .select('id, full_name, email, role, institution, updated_at')
+    .single();
+
+  if (error) throw error;
+  return data;
+};

@@ -1,5 +1,7 @@
 import { authenticateTutor, registerTutor as registerTutorService } from "../services/auth.service.js";
 import { generateJWT } from "../utils/auth/generateJWT.js";
+import { getUserProfile } from "../services/auth.service.js";
+import { updateUserProfile } from "../services/auth.service.js";
 
 // (Cardona) Genera el JWT que permite mantener la sesion activa en frontend.
 const buildAuthToken = (tutor) =>
@@ -47,4 +49,35 @@ export const loginTutor = async (req, res, next) => {
     } catch (error) {
         return next(error);
     }
+};
+
+// =================  profile =================
+export const getMe = async (req, res, next) => {
+    try {
+        const user = await getUserProfile(req.user.id);
+
+    res.json({
+      success: true,
+      data: { user },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// =================  actualizar =================
+export const updateMe = async (req, res, next) => {
+    try {
+    const { full_name, institution } = req.body;
+
+    const user = await updateUserProfile(req.user.id, { full_name, institution });
+
+    res.json({
+      success: true,
+      message: 'Perfil actualizado',
+      data: { user },
+    });
+  } catch (err) {
+    next(err);
+  }
 };
