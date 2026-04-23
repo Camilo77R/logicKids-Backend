@@ -4,7 +4,15 @@ import { comparePassword } from "../utils/auth/comparePassword.js";
 import { hashPassword } from "../utils/auth/hashPassword.js";
 
 const USERS_TABLE = "users";
+const GROUPS_TABLE = "groups";
 const TUTOR_ROLE = "tutor";
+const DEFAULT_GROUP_NAME = "Mi grupo";
+const TUTOR_PUBLIC_FIELDS = "id, full_name, email, institution, created_at, updated_at, role";
+const TUTOR_REGISTER_FIELDS = "id, full_name, email, institution, created_at, role";
+const TUTOR_LOGIN_FIELDS = "id, full_name, email, institution, password_hash, role";
+
+const PROFILE_READ_ERROR = "No fue posible consultar el perfil del tutor";
+const PROFILE_UPDATE_ERROR = "No fue posible actualizar el perfil del tutor";
 
 // Consulta si ya existe un usuario con el email recibido para aplicar la regla de unicidad.
 const findUserByEmail = async (email) => {
@@ -23,6 +31,43 @@ const findUserByEmail = async (email) => {
 
 // Mantiene compatibilidad con el frontend del Sprint 1 sin romper la DB oficial.
 const resolveTutorFullName = ({ nombre, full_name }) => full_name || nombre;
+
+// Todo tutor nace con un grupo default para evitar friccion en dashboard y children.
+const createDefaultGroupForTutor = async (tutorId) => {
+    const { error } = await supabase
+        .from(GROUPS_TABLE)
+        .insert({
+            user_id: tutorId,
+            name: DEFAULT_GROUP_NAME,
+            is_default: true,
+        });
+
+    if (error) {
+        throw new AppError("Error al crear el grupo inicial del tutor", 500);
+    }
+};
+
+const rollbackTutorCreation = async (tutorId) => {
+    await supabase
+        .from(USERS_TABLE)
+        .delete()
+        .eq("id", tutorId);
+};
+
+const resolveProfileUpdates = (updates) => {
+    const allowedFields = {};
+    const full_name = resolveTutorFullName(updates);
+
+    if (full_name) {
+        allowedFields.full_name = full_name;
+    }
+
+    if (updates.institution !== undefined) {
+        allowedFields.institution = updates.institution;
+    }
+
+    return allowedFields;
+};
 
 // Verifica la unicidad del correo antes de crear el tutor.
 const assertEmailIsAvailable = async (email) => {
@@ -46,11 +91,18 @@ const createTutor = async ({ full_name, email, password }) => {
             password_hash: hashedPassword,
             role: TUTOR_ROLE,
         })
-        .select("id, full_name, email, created_at, role")
+        .select(TUTOR_REGISTER_FIELDS)
         .single();
 
     if (error) {
         throw new AppError("Error al crear el usuario", 500);
+    }
+
+    try {
+        await createDefaultGroupForTutor(data.id);
+    } catch (groupError) {
+        await rollbackTutorCreation(data.id);
+        throw groupError;
     }
 
     return data;
@@ -60,7 +112,7 @@ const createTutor = async ({ full_name, email, password }) => {
 const findTutorForLogin = async (email) => {
     const { data, error } = await supabase
         .from(USERS_TABLE)
-        .select("id, full_name, email, password_hash, role")
+        .select(TUTOR_LOGIN_FIELDS)
         .eq("email", email)
         .eq("role", TUTOR_ROLE)
         .maybeSingle();
@@ -114,14 +166,21 @@ export const authenticateTutor = async ({ email, password }) => {
  * @returns {object} Datos del usuario
  */
 export const getUserProfile = async (userId) => {
-  const { data: user, error } = await supabase
-    .from('users')
-    .select('id, full_name, email, role, institution, created_at, updated_at')
-    .eq('id', userId)
-    .single();
+    const { data: tutor, error } = await supabase
+        .from(USERS_TABLE)
+        .select(TUTOR_PUBLIC_FIELDS)
+        .eq("id", userId)
+        .maybeSingle();
 
-  if (error) throw error;
-  return user;
+    if (error) {
+        throw new AppError(PROFILE_READ_ERROR, 500);
+    }
+
+    if (!tutor) {
+        throw new AppError("Tutor no encontrado", 404);
+    }
+
+    return tutor;
 };
 
 /**
@@ -132,17 +191,26 @@ export const getUserProfile = async (userId) => {
  * @returns {object} Usuario actualizado
  */
 export const updateUserProfile = async (userId, updates) => {
-  const allowedFields = {};
-  if (updates.full_name) allowedFields.full_name = updates.full_name;
-  if (updates.institution !== undefined) allowedFields.institution = updates.institution;
+    const allowedFields = resolveProfileUpdates(updates);
 
-  const { data, error } = await supabase
-    .from('users')
-    .update(allowedFields)
-    .eq('id', userId)
-    .select('id, full_name, email, role, institution, updated_at')
-    .single();
+    if (Object.keys(allowedFields).length === 0) {
+        throw new AppError("Debe enviar al menos un campo para actualizar", 400);
+    }
 
-  if (error) throw error;
-  return data;
+    const { data: tutor, error } = await supabase
+        .from(USERS_TABLE)
+        .update(allowedFields)
+        .eq("id", userId)
+        .select(TUTOR_PUBLIC_FIELDS)
+        .maybeSingle();
+
+    if (error) {
+        throw new AppError(PROFILE_UPDATE_ERROR, 500);
+    }
+
+    if (!tutor) {
+        throw new AppError("Tutor no encontrado", 404);
+    }
+
+    return tutor;
 };

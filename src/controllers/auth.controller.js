@@ -1,7 +1,10 @@
-import { authenticateTutor, registerTutor as registerTutorService } from "../services/auth.service.js";
+import {
+    authenticateTutor,
+    getUserProfile,
+    registerTutor as registerTutorService,
+    updateUserProfile,
+} from "../services/auth.service.js";
 import { generateJWT } from "../utils/auth/generateJWT.js";
-import { getUserProfile } from "../services/auth.service.js";
-import { updateUserProfile } from "../services/auth.service.js";
 
 // (Cardona) Genera el JWT que permite mantener la sesion activa en frontend.
 const buildAuthToken = (tutor) =>
@@ -16,11 +19,16 @@ const buildTutorResponse = (tutor) => ({
     id: tutor.id,
     nombre: tutor.full_name,
     email: tutor.email,
+    institution: tutor.institution ?? null,
 });
 
 const buildAuthResponseData = (tutor) => ({
     tutor: buildTutorResponse(tutor),
     token: buildAuthToken(tutor),
+});
+
+const buildProfileResponseData = (tutor) => ({
+    tutor: buildTutorResponse(tutor),
 });
 
 // ================= REGISTER =================
@@ -54,30 +62,28 @@ export const loginTutor = async (req, res, next) => {
 // =================  profile =================
 export const getMe = async (req, res, next) => {
     try {
-        const user = await getUserProfile(req.user.id);
+        const tutor = await getUserProfile(req.user.id);
 
-    res.json({
-      success: true,
-      data: { user },
-    });
-  } catch (err) {
-    next(err);
-  }
+        return res.status(200).json({
+            success: true,
+            data: buildProfileResponseData(tutor),
+        });
+    } catch (error) {
+        return next(error);
+    }
 };
 
 // =================  actualizar =================
 export const updateMe = async (req, res, next) => {
     try {
-    const { full_name, institution } = req.body;
+        const tutor = await updateUserProfile(req.user.id, req.body);
 
-    const user = await updateUserProfile(req.user.id, { full_name, institution });
-
-    res.json({
-      success: true,
-      message: 'Perfil actualizado',
-      data: { user },
-    });
-  } catch (err) {
-    next(err);
-  }
+        return res.status(200).json({
+            success: true,
+            message: "Perfil actualizado correctamente",
+            data: buildProfileResponseData(tutor),
+        });
+    } catch (error) {
+        return next(error);
+    }
 };
