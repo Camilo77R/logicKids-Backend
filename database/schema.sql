@@ -77,6 +77,12 @@ COMMENT ON TABLE groups IS
 
 CREATE INDEX idx_groups_user_id ON groups (user_id);
 
+-- Regla de integridad: un usuario puede tener muchos grupos,
+-- pero solo uno puede ser el grupo por defecto.
+CREATE UNIQUE INDEX ux_groups_one_default_per_user
+    ON groups (user_id)
+    WHERE is_default = TRUE;
+
 
 -- ============================================================
 -- TABLA 3: children
