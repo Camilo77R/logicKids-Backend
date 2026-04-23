@@ -2,17 +2,14 @@ import { supabase } from "../config/supabase.js";
 import AppError from "../utils/app-error.js";
 import { comparePassword } from "../utils/auth/comparePassword.js";
 import { hashPassword } from "../utils/auth/hashPassword.js";
+import { resolveTutorFullName } from "../utils/tutor-name.js";
 
 const USERS_TABLE = "users";
 const GROUPS_TABLE = "groups";
 const TUTOR_ROLE = "tutor";
 const DEFAULT_GROUP_NAME = "Mi grupo";
-const TUTOR_PUBLIC_FIELDS = "id, full_name, email, institution, created_at, updated_at, role";
 const TUTOR_REGISTER_FIELDS = "id, full_name, email, institution, created_at, role";
 const TUTOR_LOGIN_FIELDS = "id, full_name, email, institution, password_hash, role";
-
-const PROFILE_READ_ERROR = "No fue posible consultar el perfil del tutor";
-const PROFILE_UPDATE_ERROR = "No fue posible actualizar el perfil del tutor";
 
 // Consulta si ya existe un usuario con el email recibido para aplicar la regla de unicidad.
 const findUserByEmail = async (email) => {
@@ -28,9 +25,6 @@ const findUserByEmail = async (email) => {
 
     return data;
 };
-
-// Mantiene compatibilidad con el frontend del Sprint 1 sin romper la DB oficial.
-const resolveTutorFullName = ({ nombre, full_name }) => full_name || nombre;
 
 // Todo tutor nace con un grupo default para evitar friccion en dashboard y children.
 const createDefaultGroupForTutor = async (tutorId) => {
@@ -54,21 +48,6 @@ const rollbackTutorCreation = async (tutorId) => {
         .eq("id", tutorId);
 };
 
-const resolveProfileUpdates = (updates) => {
-    const allowedFields = {};
-    const full_name = resolveTutorFullName(updates);
-
-    if (full_name) {
-        allowedFields.full_name = full_name;
-    }
-
-    if (updates.institution !== undefined) {
-        allowedFields.institution = updates.institution;
-    }
-
-    return allowedFields;
-};
-
 // Verifica la unicidad del correo antes de crear el tutor.
 const assertEmailIsAvailable = async (email) => {
     const existingUser = await findUserByEmail(email);
@@ -79,7 +58,7 @@ const assertEmailIsAvailable = async (email) => {
 };
 
 // Crea el tutor y devuelve solo los campos seguros que el cliente puede recibir.
-const createTutor = async ({ full_name, email, password }) => {
+const createTutor = async ({ full_name, email, password, institution }) => {
     // (Cardona) Hashea la contrasena antes de guardarla en la base de datos.
     const hashedPassword = await hashPassword(password);
 
@@ -88,6 +67,7 @@ const createTutor = async ({ full_name, email, password }) => {
         .insert({
             full_name,
             email,
+            institution: institution ?? null,
             password_hash: hashedPassword,
             role: TUTOR_ROLE,
         })
@@ -137,6 +117,7 @@ export const registerTutor = async (payload) => {
     return createTutor({
         full_name,
         email: payload.email,
+        institution: payload.institution,
         password: payload.password,
     });
 };
@@ -154,62 +135,6 @@ export const authenticateTutor = async ({ email, password }) => {
 
     if (!isValidPassword) {
         throw new AppError("Credenciales inválidas", 401);
-    }
-
-    return tutor;
-};
-
-/**
- * Obtiene el perfil del usuario autenticado.
- *
- * @param {string} userId - ID del usuario del JWT
- * @returns {object} Datos del usuario
- */
-export const getUserProfile = async (userId) => {
-    const { data: tutor, error } = await supabase
-        .from(USERS_TABLE)
-        .select(TUTOR_PUBLIC_FIELDS)
-        .eq("id", userId)
-        .maybeSingle();
-
-    if (error) {
-        throw new AppError(PROFILE_READ_ERROR, 500);
-    }
-
-    if (!tutor) {
-        throw new AppError("Tutor no encontrado", 404);
-    }
-
-    return tutor;
-};
-
-/**
- * Actualiza el perfil del usuario autenticado.
- *
- * @param {string} userId
- * @param {{ full_name?, institution? }} updates
- * @returns {object} Usuario actualizado
- */
-export const updateUserProfile = async (userId, updates) => {
-    const allowedFields = resolveProfileUpdates(updates);
-
-    if (Object.keys(allowedFields).length === 0) {
-        throw new AppError("Debe enviar al menos un campo para actualizar", 400);
-    }
-
-    const { data: tutor, error } = await supabase
-        .from(USERS_TABLE)
-        .update(allowedFields)
-        .eq("id", userId)
-        .select(TUTOR_PUBLIC_FIELDS)
-        .maybeSingle();
-
-    if (error) {
-        throw new AppError(PROFILE_UPDATE_ERROR, 500);
-    }
-
-    if (!tutor) {
-        throw new AppError("Tutor no encontrado", 404);
     }
 
     return tutor;
