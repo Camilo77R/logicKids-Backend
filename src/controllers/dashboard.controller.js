@@ -9,12 +9,17 @@ import { getTutorDashboardSummary } from "../services/dashboard.service.js";
  *
  * RESPONSABILIDAD:
  * - toma el tutor autenticado desde req.user
+ * - toma el groupId opcional desde req.query
  * - llama al service
  * - devuelve la respuesta HTTP con el formato estándar
  */
 export const getTutorDashboard = async (req, res, next) => {
     try {
-        const dashboard = await getTutorDashboardSummary(req.user.id);
+        const validatedQuery = req.validated?.query ?? req.query;
+        const dashboard = await getTutorDashboardSummary(
+            req.user.id,
+            validatedQuery.groupId,
+        );
 
         return res.status(200).json({
             success: true,

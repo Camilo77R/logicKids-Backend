@@ -9,6 +9,7 @@ import protectedRoutes from "./routes/protected.routes.js";
 import rootRoutes from "./routes/root.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 import tutorRoutes from "./routes/tutor.routes.js";
+import groupsRoutes from "./routes/groups.routes.js";
 
 const app = express();
 
@@ -20,7 +21,9 @@ app.use("/api", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/tutor", tutorRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/groups", groupsRoutes);
 app.use("/api", protectedRoutes);
+
 
 app.use(notFound);
 app.use(errorHandler);

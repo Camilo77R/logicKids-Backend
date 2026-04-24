@@ -2,6 +2,8 @@ import { Router } from "express";
 import authMiddleware from "../middlewares/authMiddleware.js";
 import { authorizeRoles } from "../middlewares/authorizeRoles.js";
 import { getTutorDashboard } from "../controllers/dashboard.controller.js";
+import { validateSchema } from "../middlewares/validateSchema.js";
+import { dashboardQuerySchema } from "../schemas/dashboardQuery.schema.js";
 
 const router = Router();
 
@@ -15,20 +17,6 @@ const router = Router();
 router.use(authMiddleware);
 router.use(authorizeRoles("tutor"));
 
-/**
- * GET /api/dashboard
- *
- * POR QUÉ usamos "/" aquí:
- * Porque este router se montará en app.js sobre "/api/dashboard".
- * Entonces la ruta final será:
- *   GET /api/dashboard
- * y no:
- *   GET /api/dashboard/dashboard
- *
- * Además:
- * - authMiddleware valida identidad
- * - authorizeRoles("tutor") valida permiso
- */
-router.get("/", getTutorDashboard);
+router.get("/", validateSchema(dashboardQuerySchema, "query"), getTutorDashboard);
 
 export default router;
