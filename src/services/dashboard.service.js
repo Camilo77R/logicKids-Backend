@@ -7,7 +7,7 @@ const CHILDREN_TABLE = "children";
 const CHILDREN_PREVIEW_LIMIT = 5;
 
 const DASHBOARD_READ_ERROR = "No fue posible cargar el dashboard del tutor";
-
+const DASHBOARD_GROUP_NOT_FOUND_ERROR = "Grupo no encontrado";
 /**
  * Devuelve un resumen vacío cuando el tutor todavía no tiene grupo.
  *
@@ -73,12 +73,33 @@ const mapChildPreview = (child) => ({
 });
 
 /**
- * Busca el grupo principal del tutor autenticado.
+ * Resuelve qué grupo debe usar el dashboard del tutor.
  *
  * POR QUÉ:
- * El dashboard debe mostrar solo información del tutor dueño del grupo.
+ * Si llega un groupId en query, usamos ese grupo seleccionado.
+ * Si no llega, hacemos fallback al grupo principal/default.
  */
-const findTutorPrimaryGroup = async (tutorId) => {
+
+const findTutorDashboardGroup = async (tutorId, selectedGroupId) => {
+    if (selectedGroupId) {
+        const { data, error } = await supabase
+            .from(GROUPS_TABLE)
+            .select("id, name, is_default")
+            .eq("id", selectedGroupId)
+            .eq("user_id", tutorId)
+            .maybeSingle();
+
+        if (error) {
+            throw new AppError(DASHBOARD_READ_ERROR, 500);
+        }
+
+        if (!data) {
+            throw new AppError(DASHBOARD_GROUP_NOT_FOUND_ERROR, 404);
+        }
+
+        return data;
+    }
+
     const { data, error } = await supabase
         .from(GROUPS_TABLE)
         .select("id, name, is_default")
@@ -93,6 +114,7 @@ const findTutorPrimaryGroup = async (tutorId) => {
 
     return data;
 };
+
 
 /**
  * Lee el resumen agregado del grupo desde la vista oficial.
@@ -148,8 +170,8 @@ const findChildrenPreview = async (groupId) => {
  * - obtiene un preview de children
  * - devuelve un estado vacío honesto si aún no hay datos
  */
-export const getTutorDashboardSummary = async (tutorId) => {
-    const group = await findTutorPrimaryGroup(tutorId);
+export const getTutorDashboardSummary = async (tutorId, selectedGroupId) => {
+    const group = await findTutorDashboardGroup(tutorId, selectedGroupId);
 
     if (!group) {
         return {
